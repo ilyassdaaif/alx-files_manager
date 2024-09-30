@@ -1,19 +1,21 @@
-/* eslint-disable import/no-named-as-default */
-import redisClient from '../utils/redis';
-import dbClient from '../utils/db';
+import { connectToDb, getDb } from '../utils/db.js';
 
-export default class AppController {
-  static getStatus(req, res) {
-    res.status(200).json({
-      redis: redisClient.isAlive(),
-      db: dbClient.isAlive(),
-    });
-  }
+const AppController = {
+  getStatus: async (req, res) => {
+    await connectToDb(); // Ensure the database is connected
+    const status = { redis: true, db: getDb() !== undefined };
+    res.status(200).json(status);
+  },
+  getStats: async (req, res) => {
+    try {
+      const db = await connectToDb();
+      const usersCount = await db.collection('users').countDocuments();
+      const filesCount = await db.collection('files').countDocuments();
+      res.status(200).json({ users: usersCount, files: filesCount });
+    } catch (error) {
+      res.status(500).json({ error: 'Unable to fetch stats' });
+    }
+  },
+};
 
-  static getStats(req, res) {
-    Promise.all([dbClient.nbUsers(), dbClient.nbFiles()])
-      .then(([usersCount, filesCount]) => {
-        res.status(200).json({ users: usersCount, files: filesCount });
-      });
-  }
-}
+export default AppController;

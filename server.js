@@ -1,12 +1,21 @@
 import express from 'express';
-import startServer from './libs/boot';
-import injectRoutes from './routes';
-import injectMiddlewares from './libs/middlewares';
+import mongoose from 'mongoose';
+import { connectToDb } from './utils/db.js'; // Ensure correct import
+import routes from './routes/index.js';
 
-const server = express();
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-injectMiddlewares(server);
-injectRoutes(server);
-startServer(server);
+app.use(express.json());
+app.use('/api', routes);
 
-export default server;
+// Connect to MongoDB
+connectToDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('Failed to connect to MongoDB:', err);
+  });
