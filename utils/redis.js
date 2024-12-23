@@ -4,14 +4,21 @@ import { promisify } from 'util';
 class RedisClient {
   constructor() {
     this.client = redis.createClient();
+    this.isConnected = false;
     
-    // Handle errors
-    this.client.on('error', (error) => {
-      console.error(`Redis client error: ${error}`);
+    // Handle connection events
+    this.client.on('connect', () => {
+      this.isConnected = true;
     });
 
-    // Promisify Redis methods we'll need
+    this.client.on('error', (error) => {
+      console.error(`Redis client error: ${error}`);
+      this.isConnected = false;
+    });
+
+    // Promisify Redis methods
     this.getAsync = promisify(this.client.get).bind(this.client);
+    this.setAsync = promisify(this.client.set).bind(this.client);
     this.setexAsync = promisify(this.client.setex).bind(this.client);
     this.delAsync = promisify(this.client.del).bind(this.client);
   }
@@ -21,7 +28,7 @@ class RedisClient {
    * @returns {boolean} true if connection is successful, false otherwise
    */
   isAlive() {
-    return true;
+    return this.isConnected;
   }
 
   /**
@@ -40,15 +47,19 @@ class RedisClient {
   }
 
   /**
-   * Sets key-value pair in Redis with expiration
+   * Sets key-value pair in Redis with optional expiration
    * @param {string} key - Key to set
    * @param {*} value - Value to store
-   * @param {number} duration - Time in seconds until expiration
+   * @param {number} duration - Time in seconds until expiration (optional)
    * @returns {Promise<void>}
    */
   async set(key, value, duration) {
     try {
-      await this.setexAsync(key, duration, value);
+      if (duration) {
+        await this.setexAsync(key, duration, value);
+      } else {
+        await this.setAsync(key, value);
+      }
     } catch (error) {
       console.error(`Error setting key ${key}: ${error}`);
     }
@@ -68,6 +79,5 @@ class RedisClient {
   }
 }
 
-// Create and export Redis client instance
 const redisClient = new RedisClient();
 export default redisClient;
