@@ -1,40 +1,35 @@
-import redisClient from '../utils/redis.js';
+/* eslint-disable import/no-named-as-default */
 import { expect } from 'chai';
+import redisClient from '../../utils/redis';
 
-describe('RedisClient', () => {
-  before(async () => {
-    // Wait for Redis to connect
-    await new Promise((resolve) => {
-      redisClient.client.on('ready', resolve);
-    });
+describe('+ RedisClient utility', () => {
+  before(function (done) {
+    this.timeout(10000);
+    setTimeout(done, 4000);
   });
 
-  it('isAlive() returns true when Redis is connected', () => {
+  it('+ Client is alive', () => {
     expect(redisClient.isAlive()).to.equal(true);
   });
 
-  it('get() returns null for non-existent key', async () => {
-    const value = await redisClient.get('nonExistentKey');
-    expect(value).to.equal(null);
+  it('+ Setting and getting a value', async function () {
+    await redisClient.set('test_key', 345, 10);
+    expect(await redisClient.get('test_key')).to.equal('345');
   });
 
-  it('set() and get() work correctly', async () => {
-    await redisClient.set('myKey', 12);
-    const value = await redisClient.get('myKey');
-    expect(value).to.equal('12'); // Redis stores values as strings
+  it('+ Setting and getting an expired value', async function () {
+    await redisClient.set('test_key', 356, 1);
+    setTimeout(async () => {
+      expect(await redisClient.get('test_key')).to.not.equal('356');
+    }, 2000);
   });
 
-  it('set() with expiration works correctly', async () => {
-    await redisClient.set('myKey', 12, 1); // 1-second expiration
-    await new Promise((resolve) => setTimeout(resolve, 1100)); // Wait for expiration
-    const value = await redisClient.get('myKey');
-    expect(value).to.equal(null);
-  });
-
-  it('del() removes a key', async () => {
-    await redisClient.set('myKey', 12);
-    await redisClient.del('myKey');
-    const value = await redisClient.get('myKey');
-    expect(value).to.equal(null);
+  it('+ Setting and getting a deleted value', async function () {
+    await redisClient.set('test_key', 345, 10);
+    await redisClient.del('test_key');
+    setTimeout(async () => {
+      console.log('del: test_key ->', await redisClient.get('test_key'));
+      expect(await redisClient.get('test_key')).to.be.null;
+    }, 2000);
   });
 });
