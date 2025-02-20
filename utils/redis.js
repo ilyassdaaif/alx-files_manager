@@ -4,53 +4,54 @@ import { promisify } from 'util';
 class RedisClient {
   constructor() {
     this.client = redis.createClient();
-    this.isClientConnected = false;
 
-    this.client.on('connect', () => {
-      this.isClientConnected = true;
+    this.client.on('error', (err) => {
+      console.error('Redis client error:', err);
     });
 
-    this.client.on('error', (error) => {
-      console.error(`Redis client error: ${error}`);
-      this.isClientConnected = false;
+    this.client.on('connect', () => {
+      console.log('Redis client connected');
+    });
+
+    this.client.on('ready', () => {
+      console.log('Redis client ready');
     });
 
     this.client.on('end', () => {
-      this.isClientConnected = false;
+      console.log('Redis client disconnected');
     });
   }
 
   isAlive() {
-    return this.isClientConnected;
+    return this.client.connected;
   }
 
   async get(key) {
-    const asyncGet = promisify(this.client.GET).bind(this.client);
+    const getAsync = promisify(this.client.get).bind(this.client);
     try {
-      const value = await asyncGet(key);
+      const value = await getAsync(key);
       return value;
-    } catch (error) {
+    } catch (err) {
+      console.error('Error getting value from Redis:', err);
       return null;
     }
   }
 
   async set(key, value, duration) {
-    const asyncSetex = promisify(this.client.SETEX).bind(this.client);
+    const setAsync = promisify(this.client.set).bind(this.client);
     try {
-      await asyncSetex(key, duration, value);
-      return true;
-    } catch (error) {
-      return false;
+      await setAsync(key, value, 'EX', duration);
+    } catch (err) {
+      console.error('Error setting value in Redis:', err);
     }
   }
 
   async del(key) {
-    const asyncDel = promisify(this.client.DEL).bind(this.client);
+    const delAsync = promisify(this.client.del).bind(this.client);
     try {
-      await asyncDel(key);
-      return true;
-    } catch (error) {
-      return false;
+      await delAsync(key);
+    } catch (err) {
+      console.error('Error deleting value from Redis:', err);
     }
   }
 }
