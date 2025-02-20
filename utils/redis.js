@@ -4,54 +4,53 @@ import { promisify } from 'util';
 class RedisClient {
   constructor() {
     this.client = redis.createClient();
-
-    this.client.on('error', (err) => {
-      console.error('Redis client error:', err);
-    });
+    this.isClientConnected = false;
 
     this.client.on('connect', () => {
-      console.log('Redis client connected');
+      this.isClientConnected = true;
     });
 
-    this.client.on('ready', () => {
-      console.log('Redis client ready');
+    this.client.on('error', (error) => {
+      console.error(`Redis client error: ${error}`);
+      this.isClientConnected = false;
     });
 
     this.client.on('end', () => {
-      console.log('Redis client disconnected');
+      this.isClientConnected = false;
     });
   }
 
   isAlive() {
-    return this.client.connected;
+    return this.isClientConnected;
   }
 
   async get(key) {
-    const getAsync = promisify(this.client.get).bind(this.client);
+    const asyncGet = promisify(this.client.GET).bind(this.client);
     try {
-      const value = await getAsync(key);
+      const value = await asyncGet(key);
       return value;
-    } catch (err) {
-      console.error('Error getting value from Redis:', err);
+    } catch (error) {
       return null;
     }
   }
 
   async set(key, value, duration) {
-    const setAsync = promisify(this.client.set).bind(this.client);
+    const asyncSetex = promisify(this.client.SETEX).bind(this.client);
     try {
-      await setAsync(key, value, 'EX', duration);
-    } catch (err) {
-      console.error('Error setting value in Redis:', err);
+      await asyncSetex(key, duration, value);
+      return true;
+    } catch (error) {
+      return false;
     }
   }
 
   async del(key) {
-    const delAsync = promisify(this.client.del).bind(this.client);
+    const asyncDel = promisify(this.client.DEL).bind(this.client);
     try {
-      await delAsync(key);
-    } catch (err) {
-      console.error('Error deleting value from Redis:', err);
+      await asyncDel(key);
+      return true;
+    } catch (error) {
+      return false;
     }
   }
 }
