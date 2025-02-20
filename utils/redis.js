@@ -40,7 +40,11 @@ class RedisClient {
   async set(key, value, duration) {
     const setAsync = promisify(this.client.set).bind(this.client);
     try {
-      await setAsync(key, value, 'EX', duration);
+      if (duration) {
+        await setAsync(key, value, 'EX', duration);
+      } else {
+        await setAsync(key, value);
+      }
     } catch (err) {
       console.error('Error setting value in Redis:', err);
     }
